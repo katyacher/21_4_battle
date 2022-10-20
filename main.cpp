@@ -5,6 +5,7 @@
 
 const int MAP_SIZE = 20;
 const int NUM_OF_PLAYERS = 6;
+const int MAX_INT = 32767;
 
 struct vec {
     int x = 0, y = 0;
@@ -17,16 +18,16 @@ enum control_key{//for enemy
     RIGHT
 };
 
-struct key{//for hero пока не используется
+/*for hero пока не используется
+struct key{
     char up = 'w';
     char down = 's';
     char left = 'a';
     char right = 'd';
-};
+};*/
 
 struct character {
     bool flag = true;
-   // bool playing = true;
     std::string name;
     int health = 0;
     int armor = 0;
@@ -35,15 +36,14 @@ struct character {
 };
 
 
-
 //инициализация персонажей (ООП - конструктор)
 character hero_init();
 character enemy_init(int i);
 
 //действия персонажей (ООП - методы)
 void take_damage(character& person, int damage);
+void move_hero(character& person, std::string direction);
 void move_enemy(character& person);
-void move_hero(character& person);
 
 //отрисовка карты
 void map_painter(std::vector<character>& players);
@@ -57,8 +57,12 @@ void print_character(character &person);
 bool game_over(std::vector<character>& players);
 
 //состояния персонажей
-bool out_of_map(vec& position);
+bool out_of_map(character& person);
 bool is_alive(character& person);
+
+//безопасность
+std::string get_and_verify_command();
+int get_verify_int();
 
 int main() {
     std::cout << "21.4 Fighting game\n";
@@ -74,85 +78,52 @@ int main() {
 
     //Ход игры:
     while(!game_over(players)){
-        //отрисовка карты:
-        map_painter(players);
-
         for(int i = 0; i < players.size(); i++){
-            std::cout << "Ход игрока " << players[i].name << std::endl;
-            print_character(players[i]);
+            if(is_alive(players[i])){
+                //отрисовка карты:
+                map_painter(players);
 
-            int pos_x = players[i].position.x;
-            int pos_y = players[i].position.y;
+                std::cout << "Ход игрока: " << std::endl;
+                print_character(players[i]);
 
-            if(players[i].flag){
-                std::string direction;
-                std::cout << "Ваш ход 'w - s - a - d'/(load/save): ";
-                std::cin >> direction;
+                int pos_x = players[i].position.x;
+                int pos_y = players[i].position.y;
 
-                if(direction == "load") {
-                    load_characters(players);
-                } else if (direction == "save"){
-                    save_characters(players);
-                } else {
-                    if(direction == "w")
-                        players[i].position.x--;
-                    else if(direction == "s")
-                        players[i].position.x++;
-                    else if(direction == "a")
-                        players[i].position.y--;
-                    else if(direction == "d")
-                        players[i].position.y++;
-                }
-                // проверить не вышел ли за границы - check boundaries
-                if (out_of_map(players[i].position)){
+                if(players[i].flag) {
+                    std::string command;
+                    std::cout << "Ваш ход 'w -s - a - d'/(load/save): ";
+                    command = get_and_verify_command();
+
+                    if (command == "load") {
+                        load_characters(players);
+                    } else if (command == "save") {
+                        save_characters(players);
+                    } else move_hero(players[i], command);
+                } else
+                    move_enemy(players[i]);
+
+                // проверить не вышел ли за границы
+                if (out_of_map(players[i])){
                     std::cout << "Out of bounds." << std::endl;
-                    //вернуться обратно
                     players[i].position.x = pos_x;
                     players[i].position.y = pos_y;
-                    continue;
-                } else {
-                    for(int next = 0; next <  players.size(); next++){
-                        if(i == next) continue;
-                        //проверить не занята ли новая позиция другим игроком
-                        if(players[i].position.x == players[next].position.x
-                           && players[i].position.y == players[next].position.y){
-                            //если занята игроком с другим флагом - то батл
-                            if((players[i].flag != players[next].flag) && is_alive(players[next])){
-                                take_damage(players[next], players[i].damage);
-                            } else {
-                                //если занята игроком того же флага, то вернуться
-                                //на изначальную позицию и завершить ход
-                                players[i].position.x = pos_x;
-                                players[i].position.y = pos_y;
-                                break;
-                            }
-                        }
-                    }
-                }
-            } else {
-                move_enemy(players[i]);
-                //тоже самое от if(bound_checker())
-                if (out_of_map(players[i].position)){
-                    std::cout << "Out of bounds." << std::endl;
-                    //вернуться обратно
-                    players[i].position.x = pos_x;
-                    players[i].position.y = pos_y;
-                    continue;
-                } else {
-                    for(int next = 0; next <  players.size();next++){
-                        if(i == next) continue;
-                        //проверить не занята ли новая позиция другим игроком
-                        if((players[i].position.x == players[next].position.x)
-                           && (players[i].position.y == players[next].position.y)){
-                            //если занята игроком с другим флагом - то батл
-                            if((players[i].flag != players[next].flag) && is_alive(players[next])){
-                                take_damage(players[next], players[i].damage);
-                            } else {
-                                //если занята игроком того же флага, то вернуться
-                                //на изначальную позицию и завершить ход
-                                players[i].position.x = pos_x;
-                                players[i].position.y = pos_y;
-                                break;
+                } else { // проверяем ячейку на наличие живого противника
+                    for(int next = 0; next < players.size(); next++){
+                        if((i != next) && is_alive(players[next])) {
+                            //проверить не занята ли новая позиция другим игроком
+                            if(players[i].position.x == players[next].position.x
+                               && players[i].position.y == players[next].position.y){
+                                //если занята игроком с другим флагом - то батл
+                                if(players[i].flag != players[next].flag){
+                                    take_damage(players[next], players[i].damage);
+                                    if(!is_alive(players[next]))
+                                        std::cout << "Игрок " << players[next].name << " побежден!" << std::endl;
+                                } else {
+                                    //если занята игроком того же флага, то вернуться
+                                    //на изначальную позицию и завершить ход
+                                    players[i].position.x = pos_x;
+                                    players[i].position.y = pos_y;
+                                }
                             }
                         }
                     }
@@ -168,11 +139,11 @@ character hero_init(){
     std::cout << "Enter the name: ";
     std::cin >> person.name;
     std::cout << "Health: ";
-    std::cin >> person.health;
+    person.health = get_verify_int();
     std::cout << "Armor: ";
-    std::cin >> person.armor;
+    person.armor = get_verify_int();
     std::cout << "Damage: ";
-    std::cin >> person.damage;
+    person.damage  = get_verify_int();
 
     person.position.x = (std::rand() % 19);
     person.position.y = (std::rand() % 19);
@@ -201,17 +172,8 @@ void take_damage(character& person, int damage) {
     }
 };
 
-/*
-void move_hero(character& person){
-  std::string direction;
-  std::cout << "Ваш ход 'w -s - a - d'/(load/save): ";
-  std::cin >> direction;
-  
-  if(direction == "load") {//strcmp()
-    load_characters(person);
-  } else if (direction == "save"){
-    save_characters(person);
-  } else {
+
+void move_hero(character& person, std::string direction){
     if(direction == "w") 
       person.position.x--;
     else if(direction == "s")
@@ -219,10 +181,9 @@ void move_hero(character& person){
     else if(direction == "a") 
       person.position.y--;
     else if(direction == "d")
-      person.position.y++;          
-  }
+      person.position.y++;
 };
-*/
+
 
 void move_enemy(character& person){
     int direction = ((std::rand() % 4) + 1);
@@ -269,42 +230,49 @@ void map_painter(std::vector <character>& players){
 
 void load_characters(std::vector <character>& characters){
     std::ifstream file("save.bin", std::ios::binary);
-    for (int i = 0; i < 6; ++i){
-        file.read((char*)&characters[i].flag, sizeof(characters[i].flag));
+    if(file.is_open()){
+        for (int i = 0; i < 6; ++i){
+            file.read((char*)&characters[i].flag, sizeof(characters[i].flag));
 
-        int name_len;
-        file.read((char*)&name_len, sizeof(name_len));
-        characters[i].name.resize(name_len);
-        file.read((char*)characters[i].name.c_str(), name_len);
+            int name_len;
+            file.read((char*)&name_len, sizeof(name_len));
+            characters[i].name.resize(name_len);
+            file.read((char*)characters[i].name.c_str(), name_len);
 
-        file.read((char*)&characters[i].health, sizeof(characters[i].health));
-        file.read((char*)&characters[i].armor, sizeof(characters[i].armor));
-        file.read((char*)&characters[i].damage, sizeof(characters[i].damage));
-        file.read((char*)&characters[i].position.x, sizeof(characters[i].position.x));
-        file.read((char*)&characters[i].position.y, sizeof(characters[i].position.y));
+            file.read((char*)&characters[i].health, sizeof(characters[i].health));
+            file.read((char*)&characters[i].armor, sizeof(characters[i].armor));
+            file.read((char*)&characters[i].damage, sizeof(characters[i].damage));
+            file.read((char*)&characters[i].position.x, sizeof(characters[i].position.x));
+            file.read((char*)&characters[i].position.y, sizeof(characters[i].position.y));
+        }
+    } else {
+        std::cout << "Error for opening file!" << std::endl;
     }
 };
 
 void save_characters(std::vector <character>& characters){
     std::ofstream file("save.bin", std::ios::binary);
-    for (int i = 0; i < 6; ++i) {
-        file.write((char*)&(characters[i].flag), sizeof(characters[i].flag));
+    if(file.is_open()) {
+        for (int i = 0; i < 6; ++i) {
+            file.write((char *) &(characters[i].flag), sizeof(characters[i].flag));
 
-        int name_len = characters[i].name.length();
-        file.write((char*)&name_len, sizeof(name_len));
-        file.write(characters[i].name.c_str(), name_len);
+            int name_len = characters[i].name.length();
+            file.write((char *) &name_len, sizeof(name_len));
+            file.write(characters[i].name.c_str(), name_len);
 
-        file.write((char*)&(characters[i].health), sizeof(characters[i].health));
-        file.write((char*)&(characters[i].armor), sizeof(characters[i].armor));
-        file.write((char*)&(characters[i].damage), sizeof(characters[i].damage));
-        file.write((char*)&(characters[i].position.x), sizeof(characters[i].position.x));
-        file.write((char*)&(characters[i].position.y), sizeof(characters[i].position.y));
+            file.write((char *) &(characters[i].health), sizeof(characters[i].health));
+            file.write((char *) &(characters[i].armor), sizeof(characters[i].armor));
+            file.write((char *) &(characters[i].damage), sizeof(characters[i].damage));
+            file.write((char *) &(characters[i].position.x), sizeof(characters[i].position.x));
+            file.write((char *) &(characters[i].position.y), sizeof(characters[i].position.y));
+        }
+    } else {
+        std::cout << "Error for opening file!" << std::endl;
     }
 };
 
-
 bool game_over(std::vector <character>& players){
-    int enemy_defeated_counter = 0;// возможно должна быть глобальным счетчиком - инфо состояние игры.
+    int enemy_defeated_counter = 0;// возможно переменная должна быть глобальным счетчиком - инфо состояние игры.
 
     for(auto & player : players){
         if(!is_alive(player)){
@@ -321,15 +289,34 @@ bool game_over(std::vector <character>& players){
     return false;
 };
 
-bool out_of_map(vec& position){
-    if(position.x >= 20 || position.x < 0
-       || position.y >= 20 || position.y < 0 ) return true;
+bool out_of_map(character& person){
+    if(person.position.x >= 20 || person.position.x < 0
+       || person.position.y >= 20 || person.position.y < 0 ) return true;
     else return false;
 };
 
 bool is_alive(character& person){
     if (person.health > 0) return true;
     return false;
-}
+};
 
+std::string get_and_verify_command(){
+    std::string command;
+    std::cin >> command;
+    while (command != "w" || command != "s" || command != "a" || command != "d"
+           || command != "load" || command != "save") {
+        std::cout << "Incorrect command. Try again: ";
+        std::cin >> command;
+    }
+    return command;
+};
 
+int get_verify_int(){
+    int n = 0;
+    std::cin >> n;
+    while(n < 0 || n > MAX_INT){
+        std::cout << "Incorrect command. Try again: ";
+        std::cin >> n;
+    }
+    return n;
+};
