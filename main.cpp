@@ -10,11 +10,18 @@ struct vec {
     int x = 0, y = 0;
 };
 
-enum control_key{
+enum control_key{//for enemy
     UP = 1,
     DOWN,
     LEFT,
     RIGHT
+};
+
+struct key{//for hero пока не используется
+    char up = 'w';
+    char down = 's';
+    char left = 'a';
+    char right = 'd';
 };
 
 struct character {
@@ -28,34 +35,30 @@ struct character {
 };
 
 
-struct command{//или enum для врагов - рандомно генерируется ход от 1 до 4
-    char up = 'w';
-    char down = 's';
-    char left = 'a';
-    char right = 'd';
-};
 
-//инициализация персонажей
+//инициализация персонажей (ООП - конструктор)
 character hero_init();
 character enemy_init(int i);
 
-//отрисовка карты
-void map_painter(std::vector<character>& players);
-
-//действия персонажей
+//действия персонажей (ООП - методы)
 void take_damage(character& person, int damage);
 void move_enemy(character& person);
 void move_hero(character& person);
 
-//ввод - вывод инфы по персонажам 
+//отрисовка карты
+void map_painter(std::vector<character>& players);
+
+//ввод - вывод info персонажей
 void load_characters(std::vector<character>& characters);
 void save_characters(std::vector<character>& characters);
 void print_character(character &person);
 
-//кто победил?
+//состояние игры
 bool game_over(std::vector<character>& players);
 
+//состояния персонажей
 bool out_of_map(vec& position);
+bool is_alive(character& person);
 
 int main() {
     std::cout << "21.4 Fighting game\n";
@@ -108,13 +111,13 @@ int main() {
                     players[i].position.y = pos_y;
                     continue;
                 } else {
-                    for(int next = 0; next <  players.size();next++){
+                    for(int next = 0; next <  players.size(); next++){
                         if(i == next) continue;
                         //проверить не занята ли новая позиция другим игроком
                         if(players[i].position.x == players[next].position.x
                            && players[i].position.y == players[next].position.y){
                             //если занята игроком с другим флагом - то батл
-                            if(players[i].flag != players[next].flag){
+                            if((players[i].flag != players[next].flag) && is_alive(players[next])){
                                 take_damage(players[next], players[i].damage);
                             } else {
                                 //если занята игроком того же флага, то вернуться
@@ -139,10 +142,10 @@ int main() {
                     for(int next = 0; next <  players.size();next++){
                         if(i == next) continue;
                         //проверить не занята ли новая позиция другим игроком
-                        if(players[i].position.x == players[next].position.x
-                           && players[i].position.y == players[next].position.y){
+                        if((players[i].position.x == players[next].position.x)
+                           && (players[i].position.y == players[next].position.y)){
                             //если занята игроком с другим флагом - то батл
-                            if(players[i].flag != players[next].flag){
+                            if((players[i].flag != players[next].flag) && is_alive(players[next])){
                                 take_damage(players[next], players[i].damage);
                             } else {
                                 //если занята игроком того же флага, то вернуться
@@ -164,7 +167,7 @@ character hero_init(){
     character person;
     std::cout << "Enter the name: ";
     std::cin >> person.name;
-    std::cout << "Helth: ";
+    std::cout << "Health: ";
     std::cin >> person.health;
     std::cout << "Armor: ";
     std::cin >> person.armor;
@@ -234,29 +237,31 @@ void move_enemy(character& person){
 void print_character(character &person) {
     std::cout << std::endl;
     std::cout << "Name: " << person.name << std::endl;
-    std::cout << "health: " << person.health << std::endl;
-    std::cout << "armor: " << person.armor << std::endl;
-    std::cout << "damage: " << person.damage << std::endl;
-    std::cout << "position: " << person.position.x + 1;
+    std::cout << "Health: " << person.health << std::endl;
+    std::cout << "Armor: " << person.armor << std::endl;
+    std::cout << "Damage: " << person.damage << std::endl;
+    std::cout << "Position: " << person.position.x + 1;
     std::cout << ", " << person.position.y + 1 << std::endl;
 };
 
 void map_painter(std::vector <character>& players){
     int map[MAP_SIZE][MAP_SIZE] = {0}; //game field
 
-    for(int i = 0; i < players.size(); i++){
-        if(players[i].flag){
-            map[players[i].position.x][players[i].position.y] = 1;
-        } else {
-            map[players[i].position.x][players[i].position.y] = 2;
+    for(auto & player : players){
+        if(is_alive(player)){
+            if(player.flag){
+                map[player.position.x][player.position.y] = 1;
+            } else {
+                map[player.position.x][player.position.y] = 2;
+            }
         }
     }
 
-    for(int i = 0; i < MAP_SIZE; ++i){
-        for(int j = 0; j < MAP_SIZE; ++j){
-            if(map[i][j] == 0) std::cout << " . ";
-            if(map[i][j] == 1) std::cout << " P ";
-            if(map[i][j] == 2) std::cout << " E ";
+    for(auto & i : map){
+        for(int j : i){
+            if(j == 0) std::cout << " . ";
+            if(j == 1) std::cout << " P ";
+            if(j == 2) std::cout << " E ";
         }
         std::cout << std::endl;
     }
@@ -299,15 +304,14 @@ void save_characters(std::vector <character>& characters){
 
 
 bool game_over(std::vector <character>& players){
-    int enemy_defeated_counter = 0;
+    int enemy_defeated_counter = 0;// возможно должна быть глобальным счетчиком - инфо состояние игры.
 
     for(auto & player : players){
-        if(player.flag && player.health < 0) {
-            std::cout << "Game over. You lost((";
-            return true;
-        }
-        if(!player.flag && player.health < 0){
-            enemy_defeated_counter++;
+        if(!is_alive(player)){
+            if(player.flag) {
+                std::cout << "Game over. You lost((";
+                return true;
+            } else enemy_defeated_counter++;
         }
     }
     if (enemy_defeated_counter ==  NUM_OF_PLAYERS - 1) {
@@ -318,35 +322,14 @@ bool game_over(std::vector <character>& players){
 };
 
 bool out_of_map(vec& position){
-    if(position.x >=20 || position.x < 0
-       || position.y >=20 || position.y < 0 ) return true;
+    if(position.x >= 20 || position.x < 0
+       || position.y >= 20 || position.y < 0 ) return true;
     else return false;
 };
 
-////////////////////////////////////////////////////////////////////
-//архив:
-/* character character_init() { 
-  character person;
-   for (int i = 0; i < 6; ++i) {
-    if (i == 0) {
-      person[i].flag = true;
-      std::cout << "Enter the name: ";
-      std::cin >> person[i].name;
-      std::cout << "Helth: ";
-      std::cin >> person[i].health;
-      std::cout << "Armor: ";
-      std::cin >> person[i].armor;
-      std::cout << "Damage: ";
-      std::cin >> person[i].damage;
-    } else {
-      person[i].flag = false;
-      person[i].name = "Enemy " + std::to_string(i);
-      person[i].health = (std::rand() % 100) + 50;
-      person[i].armor = (std::rand() % 50);
-      person[i].damage = (std::rand() % 15) + 15;
-    }
-    person[i].position.x = (std::rand() % 19);
-    person[i].position.y = (std::rand() % 19);
-  }
-};
-*/
+bool is_alive(character& person){
+    if (person.health > 0) return true;
+    return false;
+}
+
+
