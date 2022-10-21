@@ -116,8 +116,13 @@ int main() {
                                 //если занята игроком с другим флагом - то батл
                                 if(players[i].flag != players[next].flag){
                                     take_damage(players[next], players[i].damage);
-                                    if(!is_alive(players[next]))
+                                    if(is_alive(players[next])){
+                                        players[i].position.x = pos_x;
+                                        players[i].position.y = pos_y;
+                                    } else {
                                         std::cout << "Игрок " << players[next].name << " побежден!" << std::endl;
+                                    }
+
                                 } else {
                                     //если занята игроком того же флага, то вернуться
                                     //на изначальную позицию и завершить ход
@@ -196,7 +201,6 @@ void move_enemy(character& person){
 };
 
 void print_character(character &person) {
-    std::cout << std::endl;
     std::cout << "Name: " << person.name << std::endl;
     std::cout << "Health: " << person.health << std::endl;
     std::cout << "Armor: " << person.armor << std::endl;
@@ -303,8 +307,8 @@ bool is_alive(character& person){
 std::string get_and_verify_command(){
     std::string command;
     std::cin >> command;
-    while (command != "w" || command != "s" || command != "a" || command != "d"
-           || command != "load" || command != "save") {
+    while (command != "w" && command != "s" && command != "a" && command != "d"
+           && command != "load" && command != "save") {
         std::cout << "Incorrect command. Try again: ";
         std::cin >> command;
     }
