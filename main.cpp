@@ -18,7 +18,7 @@ enum control_key{//for enemy
     RIGHT
 };
 
-/*for hero пока не используется
+/*for hero не используется
 struct key{
     char up = 'w';
     char down = 's';
@@ -27,7 +27,7 @@ struct key{
 };*/
 
 struct character {
-    bool flag = true;
+    bool is_hero = true;
     std::string name;
     int health = 0;
     int armor = 0;
@@ -44,6 +44,10 @@ character enemy_init(int i);
 void take_damage(character& person, int damage);
 void move_hero(character& person, std::string direction);
 void move_enemy(character& person);
+void step_back(character& person, int prev_x, int prev_y);
+
+//взаимодействие персонажей
+//void battle(character& current_person, character& next_person);
 
 //отрисовка карты
 void map_painter(std::vector<character>& players);
@@ -64,6 +68,7 @@ bool is_alive(character& person);
 std::string get_and_verify_command();
 int get_verify_int();
 
+
 int main() {
     std::cout << "21.4 Fighting game\n";
 
@@ -76,11 +81,10 @@ int main() {
             players.push_back(enemy_init(i));
     };
 
-    //Ход игры:
     while(!game_over(players)){
         for(int i = 0; i < players.size(); i++){
             if(is_alive(players[i])){
-                //отрисовка карты:
+
                 map_painter(players);
 
                 std::cout << "Ход игрока: " << std::endl;
@@ -89,7 +93,7 @@ int main() {
                 int pos_x = players[i].position.x;
                 int pos_y = players[i].position.y;
 
-                if(players[i].flag) {
+                if(players[i].is_hero) {
                     std::string command;
                     std::cout << "Ваш ход 'w -s - a - d'/(load/save): ";
                     command = get_and_verify_command();
@@ -99,35 +103,32 @@ int main() {
                     } else if (command == "save") {
                         save_characters(players);
                     } else move_hero(players[i], command);
-                } else
+                } else{
                     move_enemy(players[i]);
+                }
 
-                // проверить не вышел ли за границы
                 if (out_of_map(players[i])){
-                    std::cout << "Out of bounds." << std::endl;
-                    players[i].position.x = pos_x;
-                    players[i].position.y = pos_y;
-                } else { // проверяем ячейку на наличие живого противника
-                    for(int next = 0; next < players.size(); next++){
-                        if((i != next) && is_alive(players[next])) {
-                            //проверить не занята ли новая позиция другим игроком
-                            if(players[i].position.x == players[next].position.x
-                               && players[i].position.y == players[next].position.y){
-                                //если занята игроком с другим флагом - то батл
-                                if(players[i].flag != players[next].flag){
-                                    take_damage(players[next], players[i].damage);
-                                    if(is_alive(players[next])){
-                                        players[i].position.x = pos_x;
-                                        players[i].position.y = pos_y;
-                                    } else {
-                                        std::cout << "Игрок " << players[next].name << " побежден!" << std::endl;
-                                    }
+                    std::cout << "Ход за пределы игрового поля недоступен." << std::endl;
+                    step_back(players[i], pos_x, pos_y);
+                    break;
+                }
+                for(int next = 0; next < players.size(); next++){ // проверяем ячейку на наличие живого противника
+                    if((i != next) && is_alive(players[next])) {
+                        //проверить не занята ли новая позиция другим игроком
+                        if(players[i].position.x == players[next].position.x
+                            && players[i].position.y == players[next].position.y){
 
+                            if(players[i].is_hero == players[next].is_hero){
+                                //если занята игроком того же флага, то вернуться
+                                //на изначальную позицию и завершить ход
+                                step_back(players[i], pos_x, pos_y);
+
+                            } else { //если занята игроком с другим флагом - то сразиться
+                                take_damage(players[next], players[i].damage);
+                                if(is_alive(players[next])){
+                                    step_back(players[i], pos_x, pos_y);
                                 } else {
-                                    //если занята игроком того же флага, то вернуться
-                                    //на изначальную позицию и завершить ход
-                                    players[i].position.x = pos_x;
-                                    players[i].position.y = pos_y;
+                                    std::cout << "Игрок " << players[next].name << " побежден!" << std::endl;
                                 }
                             }
                         }
@@ -158,7 +159,7 @@ character hero_init(){
 
 character enemy_init(int i){
     character person;
-    person.flag = false;
+    person.is_hero = false;
     person.name = "Enemy " + std::to_string(i);
     person.health = (std::rand() % 100) + 50;
     person.armor = (std::rand() % 50);
@@ -200,6 +201,15 @@ void move_enemy(character& person){
     }
 };
 
+void step_back(character& person, int prev_x, int prev_y){
+    person.position.x = prev_x;
+    person.position.y = prev_y;
+};
+
+void battle(character& current_person, character& next_person){
+
+}
+
 void print_character(character &person) {
     std::cout << "Name: " << person.name << std::endl;
     std::cout << "Health: " << person.health << std::endl;
@@ -214,7 +224,7 @@ void map_painter(std::vector <character>& players){
 
     for(auto & player : players){
         if(is_alive(player)){
-            if(player.flag){
+            if(player.is_hero){
                 map[player.position.x][player.position.y] = 1;
             } else {
                 map[player.position.x][player.position.y] = 2;
@@ -236,7 +246,7 @@ void load_characters(std::vector <character>& characters){
     std::ifstream file("save.bin", std::ios::binary);
     if(file.is_open()){
         for (int i = 0; i < 6; ++i){
-            file.read((char*)&characters[i].flag, sizeof(characters[i].flag));
+            file.read((char*)&characters[i].is_hero, sizeof(characters[i].is_hero));
 
             int name_len;
             file.read((char*)&name_len, sizeof(name_len));
@@ -258,7 +268,7 @@ void save_characters(std::vector <character>& characters){
     std::ofstream file("save.bin", std::ios::binary);
     if(file.is_open()) {
         for (int i = 0; i < 6; ++i) {
-            file.write((char *) &(characters[i].flag), sizeof(characters[i].flag));
+            file.write((char *) &(characters[i].is_hero), sizeof(characters[i].is_hero));
 
             int name_len = characters[i].name.length();
             file.write((char *) &name_len, sizeof(name_len));
@@ -280,7 +290,7 @@ bool game_over(std::vector <character>& players){
 
     for(auto & player : players){
         if(!is_alive(player)){
-            if(player.flag) {
+            if(player.is_hero) {
                 std::cout << "Game over. You lost((";
                 return true;
             } else enemy_defeated_counter++;
@@ -324,3 +334,4 @@ int get_verify_int(){
     }
     return n;
 };
+
