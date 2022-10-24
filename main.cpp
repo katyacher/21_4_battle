@@ -18,14 +18,6 @@ enum control_key{//for enemy
     RIGHT
 };
 
-/*for hero не используется
-struct key{
-    char up = 'w';
-    char down = 's';
-    char left = 'a';
-    char right = 'd';
-};*/
-
 struct character {
     bool is_hero = true;
     std::string name;
@@ -45,9 +37,6 @@ void take_damage(character& person, int damage);
 void move_hero(character& person, std::string direction);
 void move_enemy(character& person);
 void step_back(character& person, int prev_x, int prev_y);
-
-//взаимодействие персонажей
-//void battle(character& current_person, character& next_person);
 
 //отрисовка карты
 void map_painter(std::vector<character>& players);
@@ -137,8 +126,7 @@ int main() {
             }
         }
     }
-};
-
+}
 
 character hero_init(){
     character person;
@@ -155,7 +143,7 @@ character hero_init(){
     person.position.y = (std::rand() % 19);
 
     return person;
-};
+}
 
 character enemy_init(int i){
     character person;
@@ -168,7 +156,7 @@ character enemy_init(int i){
     person.position.y = (std::rand() % 19);
 
     return person;
-};
+}
 
 void take_damage(character& person, int damage) {
     person.armor -= damage;
@@ -176,7 +164,7 @@ void take_damage(character& person, int damage) {
         person.health += person.armor;
         person.armor = 0;
     }
-};
+}
 
 
 void move_hero(character& person, std::string direction){
@@ -188,7 +176,7 @@ void move_hero(character& person, std::string direction){
       person.position.y--;
     else if(direction == "d")
       person.position.y++;
-};
+}
 
 
 void move_enemy(character& person){
@@ -199,16 +187,13 @@ void move_enemy(character& person){
         case LEFT: person.position.y--; break;
         case RIGHT: person.position.y++; break;
     }
-};
+}
 
 void step_back(character& person, int prev_x, int prev_y){
     person.position.x = prev_x;
     person.position.y = prev_y;
-};
-
-void battle(character& current_person, character& next_person){
-
 }
+
 
 void print_character(character &person) {
     std::cout << "Name: " << person.name << std::endl;
@@ -217,7 +202,7 @@ void print_character(character &person) {
     std::cout << "Damage: " << person.damage << std::endl;
     std::cout << "Position: " << person.position.x + 1;
     std::cout << ", " << person.position.y + 1 << std::endl;
-};
+}
 
 void map_painter(std::vector <character>& players){
     int map[MAP_SIZE][MAP_SIZE] = {0}; //game field
@@ -240,7 +225,7 @@ void map_painter(std::vector <character>& players){
         }
         std::cout << std::endl;
     }
-};
+}
 
 void load_characters(std::vector <character>& characters){
     std::ifstream file("save.bin", std::ios::binary);
@@ -262,7 +247,7 @@ void load_characters(std::vector <character>& characters){
     } else {
         std::cout << "Error for opening file!" << std::endl;
     }
-};
+}
 
 void save_characters(std::vector <character>& characters){
     std::ofstream file("save.bin", std::ios::binary);
@@ -283,7 +268,7 @@ void save_characters(std::vector <character>& characters){
     } else {
         std::cout << "Error for opening file!" << std::endl;
     }
-};
+}
 
 bool game_over(std::vector <character>& players){
     int enemy_defeated_counter = 0;// возможно переменная должна быть глобальным счетчиком - инфо состояние игры.
@@ -301,18 +286,17 @@ bool game_over(std::vector <character>& players){
         return true;
     }
     return false;
-};
+}
 
 bool out_of_map(character& person){
     if(person.position.x >= 20 || person.position.x < 0
        || person.position.y >= 20 || person.position.y < 0 ) return true;
     else return false;
-};
+}
 
 bool is_alive(character& person){
-    if (person.health > 0) return true;
-    return false;
-};
+    return person.health > 0;
+}
 
 std::string get_and_verify_command(){
     std::string command;
@@ -323,7 +307,7 @@ std::string get_and_verify_command(){
         std::cin >> command;
     }
     return command;
-};
+}
 
 int get_verify_int(){
     int n = 0;
@@ -333,5 +317,5 @@ int get_verify_int(){
         std::cin >> n;
     }
     return n;
-};
+}
 
