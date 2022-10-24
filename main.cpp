@@ -68,7 +68,7 @@ int main() {
             players.push_back(hero_init());
         else
             players.push_back(enemy_init(i));
-    };
+    }
 
     while(!game_over(players)){
         for(int i = 0; i < players.size(); i++){
